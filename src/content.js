@@ -258,6 +258,14 @@ export const T = {
     mis_empty:'لا أخطاء مسجلة بعد — أحسنت! ستظهر هنا أي إجابة خاطئة لتتمكن من مراجعتها.',
     mis_clear:'مسح السجل', mis_lesson:'درس', mis_exam:'امتحان', mis_quiz:'كويز',
     pacs_btn:'وضع PACS',
+    theme_name:'الوضع الليلي', acct:'الحساب',
+    acct_login:'تسجيل الدخول', acct_register:'إنشاء حساب', acct_email:'البريد الإلكتروني', acct_password:'كلمة السر',
+    acct_logout:'تسجيل الخروج', acct_in_as:'مسجّل الدخول باسم',
+    acct_note:'أنشئ حسابًا أو سجّل دخولك ليُحفَظ تقدمك (سجل الأخطاء، نتائج الامتحانات، البطاقات المتقَنة) في حسابك ويُزامَن على كل أجهزتك — تابع من الجوال ما بدأته على الآيباد.',
+    acct_local_note:'بدون حساب يبقى تقدمك محفوظًا على هذا الجهاز فقط.',
+    acct_new:'ليس عندي حساب — إنشاء حساب جديد', acct_have:'عندي حساب — تسجيل الدخول',
+    acct_sync_now:'مزامنة الآن', acct_synced:'تمت المزامنة ✓', acct_working:'جارٍ العمل…',
+    acct_err:'حدثت مشكلة — تحقق من البيانات وحاول مجددًا.',
   },
   en:{
     dir:'ltr', langName:'العربية',
@@ -363,5 +371,13 @@ export const T = {
     mis_empty:'No mistakes recorded yet — well done! Any wrong answer will appear here for review.',
     mis_clear:'Clear log', mis_lesson:'Lesson', mis_exam:'Exam', mis_quiz:'Quiz',
     pacs_btn:'PACS mode',
+    theme_name:'Night mode', acct:'Account',
+    acct_login:'Sign in', acct_register:'Create account', acct_email:'Email', acct_password:'Password',
+    acct_logout:'Sign out', acct_in_as:'Signed in as',
+    acct_note:'Create an account or sign in so your progress (mistakes log, exam best scores, mastered flashcards) is saved to your account and synced across all your devices — continue on your phone what you started on your tablet.',
+    acct_local_note:'Without an account, your progress is kept on this device only.',
+    acct_new:'New here — create an account', acct_have:'I have an account — sign in',
+    acct_sync_now:'Sync now', acct_synced:'Synced ✓', acct_working:'Working…',
+    acct_err:'Something went wrong — check the details and try again.',
   }
 };

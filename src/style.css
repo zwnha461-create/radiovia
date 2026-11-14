@@ -258,3 +258,34 @@ body.pacs{background:#000}
 body.pacs .panel, body.pacs .card, body.pacs .review-row{background:#050505; border-color:#1c1c1c}
 body.pacs header{background:#000}
 @media (max-width:560px){ .win-controls{grid-template-columns:1fr} }
+
+/* ---------- night (dark) theme + account ---------- */
+.theme-toggle{
+  border:1.5px solid var(--accent); color:var(--accent); background:#fff;
+  border-radius:999px; padding:6px 12px; font-weight:700; cursor:pointer; font-size:.9rem;
+  transition:.2s; font-family:inherit;
+}
+.theme-toggle:hover{background:var(--accent); color:#fff}
+body.dark{
+  --bg:#0a1117; --card:#101c26; --ink:#e8f1f4; --muted:#8fa6b3;
+  --accent:#2ec4cf; --accent-dark:#7fd4dc; --accent-soft:#14333d;
+  --line:#22343f; --bad:#e58aa0;
+  --shadow:0 10px 30px rgba(0,0,0,.45);
+}
+body.dark header.site{background:rgba(10,17,23,.92)}
+body.dark .lang-toggle, body.dark .theme-toggle{background:transparent}
+body.dark .opt-btn{background:var(--card); color:var(--ink)}
+body.dark .fc-front{background:var(--card)}
+body.dark input[type=text], body.dark input[type=number], body.dark input[type=email],
+body.dark input[type=password]{
+  background:#0d1820; color:var(--ink); border-color:var(--line);
+}
+.acct-form{max-width:440px; margin:18px auto; display:grid; gap:12px}
+.acct-form label{font-weight:700; font-size:.95rem; display:grid; gap:5px}
+.acct-form input{
+  padding:11px 13px; border:1.5px solid var(--line); border-radius:10px;
+  font-size:1rem; font-family:inherit; background:#fff; color:var(--ink);
+}
+.acct-err{color:var(--bad); font-weight:700; min-height:1.4em}
+.acct-switch{background:none; border:none; color:var(--accent); font-weight:700; cursor:pointer; font-size:.95rem; font-family:inherit}
+

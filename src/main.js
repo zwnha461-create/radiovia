@@ -3,6 +3,7 @@ import { CHAPTERS, chapterLessons, APPENDIX_LESSONS, findLesson, chapterOf } fro
 import { BASICS_CHAPTERS, basicsChapterLessons, basicsChapterQuiz, BASICS_VIEWERS, findBasicsLesson, findQuiz, basicsChapterOf } from './basics/index.js';
 import { ANATOMY_SETS } from './anatomy-data.js';
 import { EXAMS } from './exams.js';
+import { onUser, signIn, register, signOutUser, pullProgress, pushProgress } from './auth.js';
 
 const findAnyLesson = slug => findLesson(slug) || findBasicsLesson(slug);
 
@@ -23,13 +24,20 @@ function renderChrome(){
     ['#/exams', t().nav_exams, route.startsWith('#/exams') || route.startsWith('#/exam/')],
     ['#/dicom', t().nav_dicom, route==='#/dicom'],
     ['#/search', '🔍 ' + t().nav_search, route==='#/search'],
+    ['#/account', '👤 ' + (currentUser ? currentUser.email.split('@')[0] : t().acct), route==='#/account'],
   ];
   $('#site-header').innerHTML = `<div class="site"><div class="wrap"><div class="bar">
     <a class="logo" href="#/">${LOGO}<span>Radiovia<small>${lang==='ar'?'راديوفيا — تعليم الأشعة التشخيصية':'Diagnostic radiology education'}</small></span></a>
     <nav class="main">${nav.map(([h,l,a])=>`<a href="${h}" class="${a?'active':''}">${l}</a>`).join('')}</nav>
+    <button class="theme-toggle" id="theme-btn" title="${t().theme_name}">${document.body.classList.contains('dark') ? '☀️' : '🌙'}</button>
     <button class="lang-toggle" id="lang-btn">${t().langName}</button>
   </div></div></div>`;
   $('#lang-btn').onclick = () => { lang = lang==='ar' ? 'en' : 'ar'; localStorage.setItem('radiovia-lang', lang); render(); };
+  $('#theme-btn').onclick = () => {
+    const dark = document.body.classList.toggle('dark');
+    try { localStorage.setItem('radiovia_theme', dark ? 'dark' : 'light'); } catch {}
+    render();
+  };
   $('#site-footer').innerHTML = `<div class="site"><div class="wrap"><div class="cols">
     <div style="max-width:520px"><b>Radiovia</b><br>${t().foot_about}</div>
     <div>${t().foot_credit}<br>${t().foot_note}</div>
@@ -86,6 +94,113 @@ function recordMistake(m){
   const all = loadMistakes();
   all.push({ ...m, ts: Date.now() });
   try { localStorage.setItem(MIS_KEY, JSON.stringify(all.slice(-300))); } catch {}
+  scheduleSync();
+}
+
+/* ---------- ACCOUNTS + CLOUD SYNC (Firebase) ---------- */
+let currentUser = null;
+let syncTimer = null;
+function collectProgress(){
+  const best = {};
+  for(const e of EXAMS){ const v = localStorage.getItem('radiovia_best_' + e.id); if(v !== null) best[e.id] = +v; }
+  let known = [];
+  try { known = JSON.parse(localStorage.getItem('radiovia_known')) || []; } catch {}
+  return { mistakes: loadMistakes(), known, best, updatedAt: Date.now() };
+}
+function applyProgress(p){
+  if(!p) return;
+  try {
+    localStorage.setItem(MIS_KEY, JSON.stringify((p.mistakes || []).slice(-300)));
+    localStorage.setItem('radiovia_known', JSON.stringify(p.known || []));
+    for(const [id, v] of Object.entries(p.best || {})) localStorage.setItem('radiovia_best_' + id, String(v));
+  } catch {}
+}
+function mergeProgress(local, cloud){
+  if(!cloud) return local;
+  const best = { ...(cloud.best || {}) };
+  for(const [id, v] of Object.entries(local.best || {})) best[id] = Math.max(best[id] ?? -1, v);
+  const known = [...new Set([...(cloud.known || []), ...(local.known || [])])];
+  const key = m => `${m.ts}|${m.slug || ''}|${(m.q?.en || m.q?.ar || '')}`;
+  const map = new Map();
+  for(const m of [...(cloud.mistakes || []), ...(local.mistakes || [])]) map.set(key(m), m);
+  const mistakes = [...map.values()].sort((a, b) => a.ts - b.ts).slice(-300);
+  return { mistakes, known, best, updatedAt: Date.now() };
+}
+function scheduleSync(){
+  if(!currentUser) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => { pushProgress(currentUser.uid, collectProgress()).catch(() => {}); }, 900);
+}
+async function syncOnLogin(){
+  if(!currentUser) return;
+  try {
+    const cloud = await pullProgress(currentUser.uid);
+    const merged = mergeProgress(collectProgress(), cloud);
+    applyProgress(merged);
+    await pushProgress(currentUser.uid, merged);
+  } catch {}
+}
+function viewAccount(){
+  if(currentUser){
+    return `<section class="wrap" style="padding-top:26px; padding-bottom:50px">
+      <h2>👤 ${t().acct}</h2>
+      <div class="panel" style="max-width:520px; margin:16px auto; text-align:center">
+        <p>${t().acct_in_as}: <b>${currentUser.email}</b></p>
+        <p class="muted">${t().acct_note}</p>
+        <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:12px">
+          <button class="btn" id="acct-sync">${t().acct_sync_now}</button>
+          <button class="btn ghost" id="acct-out">${t().acct_logout}</button>
+        </div>
+        <p class="acct-err" id="acct-msg" style="color:var(--good)"></p>
+      </div>
+    </section>`;
+  }
+  return `<section class="wrap" style="padding-top:26px; padding-bottom:50px">
+    <h2>👤 ${t().acct_login}</h2>
+    <p class="muted" style="text-align:center; max-width:560px; margin:0 auto">${t().acct_note}</p>
+    <form class="acct-form panel" id="acct-form" style="padding:20px">
+      <label>${t().acct_email}<input type="email" id="acct-email" required autocomplete="email" /></label>
+      <label>${t().acct_password}<input type="password" id="acct-pw" required minlength="6" autocomplete="current-password" /></label>
+      <div class="acct-err" id="acct-err"></div>
+      <button class="btn" id="acct-submit" type="submit">${t().acct_login}</button>
+      <button class="acct-switch" id="acct-switch" type="button">${t().acct_new}</button>
+    </form>
+    <p class="muted" style="text-align:center">${t().acct_local_note}</p>
+  </section>`;
+}
+function bindAccount(){
+  if(currentUser){
+    $('#acct-out').onclick = async () => { await signOutUser().catch(() => {}); };
+    $('#acct-sync').onclick = async e => {
+      const msg = $('#acct-msg'); e.target.disabled = true;
+      try { await syncOnLogin(); msg.textContent = t().acct_synced; }
+      catch { msg.textContent = t().acct_err; msg.style.color = 'var(--bad)'; }
+      e.target.disabled = false;
+    };
+    return;
+  }
+  let mode = 'login';
+  const form = $('#acct-form'); if(!form) return;
+  $('#acct-switch').onclick = () => {
+    mode = mode === 'login' ? 'register' : 'login';
+    $('#acct-submit').textContent = mode === 'login' ? t().acct_login : t().acct_register;
+    $('#acct-switch').textContent = mode === 'login' ? t().acct_new : t().acct_have;
+    $('h2').textContent = '👤 ' + (mode === 'login' ? t().acct_login : t().acct_register);
+  };
+  form.onsubmit = async e => {
+    e.preventDefault();
+    const err = $('#acct-err'); const btn = $('#acct-submit');
+    btn.disabled = true; btn.textContent = t().acct_working; err.textContent = '';
+    const email = $('#acct-email').value.trim(), pw = $('#acct-pw').value;
+    try {
+      if(mode === 'login') await signIn(email, pw); else await register(email, pw);
+      // onUser listener re-renders with the signed-in state + runs syncOnLogin
+    } catch {
+      err.textContent = t().acct_err;
+      btn.disabled = false;
+      btn.textContent = mode === 'login' ? t().acct_login : t().acct_register;
+    }
+  };
 }
 
 function bindQuiz(quiz, ctx){
@@ -548,7 +663,7 @@ function bindExam(id){
     const pct = Math.round(correct / n * 100);
     const secs = Math.floor((Date.now() - st.start)/1000);
     const prev = +(localStorage.getItem('radiovia_best_' + st.exam.id) || 0);
-    if(pct > prev) localStorage.setItem('radiovia_best_' + st.exam.id, pct);
+    if(pct > prev){ localStorage.setItem('radiovia_best_' + st.exam.id, pct); scheduleSync(); }
     const rows = st.exam.questions.map((q,i) => {
       const ok = st.picked[i] === q.a;
       return `<div class="review-row ${ok ? 'ok' : 'bad'}">
@@ -803,7 +918,7 @@ function bindFlashcards(){
   const known = new Set(JSON.parse(localStorage.getItem('radiovia_known') || '[]'));
   cardState = { order: terms.map((_,i) => i), idx: 0, flipped: false };
   const root = $('#cards-root');
-  function saveKnown(){ localStorage.setItem('radiovia_known', JSON.stringify([...known])); }
+  function saveKnown(){ localStorage.setItem('radiovia_known', JSON.stringify([...known])); scheduleSync(); }
   function render(){
     const st = cardState, term = terms[st.order[st.idx]], def = GLOSSARY[term];
     root.innerHTML = `
@@ -914,8 +1029,9 @@ function render(){
   else if(route === '#/mistakes'){
     app.innerHTML = viewMistakes();
     const clearBtn = $('#mis-clear');
-    if(clearBtn) clearBtn.onclick = () => { localStorage.removeItem(MIS_KEY); render(); };
+    if(clearBtn) clearBtn.onclick = () => { localStorage.removeItem(MIS_KEY); scheduleSync(); render(); };
   }
+  else if(route === '#/account'){ app.innerHTML = viewAccount(); bindAccount(); }
   else if(route === '#/dicom'){ app.innerHTML = viewDicom(); }
   else app.innerHTML = viewHome();
   bindGloss(); bindReveal();
@@ -924,6 +1040,14 @@ function render(){
 function stopViewerTimer(){ if(viewerState.timer){ clearInterval(viewerState.timer); viewerState.timer = null; } }
 window.addEventListener('hashchange', render);
 render();
+
+/* ---------- auth state (progressive: site works fully without it) ---------- */
+onUser(async user => {
+  const was = currentUser?.uid || null;
+  currentUser = user;
+  if(user && was !== user.uid) await syncOnLogin();
+  render();
+}).catch(() => {});
 
 /* ---------- PWA ---------- */
 if('serviceWorker' in navigator){
