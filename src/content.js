@@ -177,6 +177,10 @@ export const T = {
     prev_lesson:'→ الدرس السابق', next_lesson:'الدرس التالي ←',
     back_chapter:'عودة إلى الفصل', end_quiz:'اختبر نفسك — نهاية الدرس',
     featured_badge:'درس تفاعلي',
+    nav_basics:'الأساسيات',
+    basics_title:'أساسيات الأشعة — Radiology Basics',
+    basics_sub:'وسائط التصوير وتشريح وباتولوجي الصدر والبطن والرأس، مع عارض صور تفاعلي وكويز لكل منطقة.',
+    section_quiz:'كويز المنطقة', img_anatomy:'تشريح مصوّر تفاعلي', questions_word:'أسئلة',
   },
   en:{
     dir:'ltr', langName:'العربية',
@@ -243,5 +247,9 @@ export const T = {
     prev_lesson:'← Previous lesson', next_lesson:'Next lesson →',
     back_chapter:'Back to chapter', end_quiz:'Check yourself — end of lesson',
     featured_badge:'Interactive lesson',
+    nav_basics:'Basics',
+    basics_title:'Radiology Basics',
+    basics_sub:'Imaging modalities plus chest, abdomen and head anatomy and pathology, with an interactive image viewer and a quiz for each region.',
+    section_quiz:'Section quiz', img_anatomy:'Interactive image anatomy', questions_word:'questions',
   }
 };

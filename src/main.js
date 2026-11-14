@@ -1,5 +1,9 @@
 import { T, SLICES, sliceSrc, LEVELS, levelOf, LABELS, GLOSSARY, QUIZ, VIEWERS } from './content.js';
 import { CHAPTERS, chapterLessons, APPENDIX_LESSONS, findLesson, chapterOf } from './lessons/index.js';
+import { BASICS_CHAPTERS, basicsChapterLessons, basicsChapterQuiz, BASICS_VIEWERS, findBasicsLesson, findQuiz, basicsChapterOf } from './basics/index.js';
+import { ANATOMY_SETS } from './anatomy-data.js';
+
+const findAnyLesson = slug => findLesson(slug) || findBasicsLesson(slug);
 
 let lang = localStorage.getItem('radiovia-lang') || 'ar';
 const t = () => T[lang];
@@ -13,8 +17,8 @@ function renderChrome(){
   const route = location.hash || '#/';
   const nav = [
     ['#/', t().nav_home, route==='#/'],
+    ['#/basics', t().nav_basics, route.startsWith('#/basics') || route.startsWith('#/quiz') || route.startsWith('#/anatomy')],
     ['#/physics', t().nav_physics, route.startsWith('#/physics') || route.startsWith('#/lesson')],
-    ['#/anatomy', t().nav_anatomy, route==='#/anatomy'],
     ['#/dicom', t().nav_dicom, route==='#/dicom'],
   ];
   $('#site-header').innerHTML = `<div class="site"><div class="wrap"><div class="bar">
@@ -102,7 +106,7 @@ function bindQuiz(quiz){
 /* ---------- HOME ---------- */
 function viewHome(){
   const cards = [
-    {ico:'🫁', tt:t().c_basics_t, p:t().c_basics_p, badge:`<span class="badge live">${t().live}</span>`, link:'#/anatomy'},
+    {ico:'🫁', tt:t().c_basics_t, p:t().c_basics_p, badge:`<span class="badge live">${t().live}</span>`, link:'#/basics'},
     {ico:'⚛️', tt:t().c_physics_t, p:t().c_physics_p, badge:`<span class="badge live">${t().live}</span>`, link:'#/physics'},
     {ico:'🎯', tt:t().c_exams_t, p:t().c_exams_p, badge:`<span class="badge soon">${t().soon}</span>`, link:null},
     {ico:'🖥️', tt:t().c_dicom_t, p:t().c_dicom_p, badge:`<span class="badge live">${t().live}</span>`, link:'#/dicom'},
@@ -181,16 +185,25 @@ function sectionHTML(s){
   return h + `</div>`;
 }
 function viewLesson(slug){
-  const lesson = findLesson(slug);
+  const phys = findLesson(slug);
+  const lesson = phys || findBasicsLesson(slug);
   if(!lesson) return viewPhysicsIndex();
   if(lesson.featured) return viewProduction();
-  const ch = chapterOf(lesson.chapter);
-  const siblings = lesson.chapter === 'appendix' ? APPENDIX_LESSONS : chapterLessons(lesson.chapter);
+  let ch, siblings, crumb;
+  if(phys){
+    ch = chapterOf(lesson.chapter);
+    siblings = lesson.chapter === 'appendix' ? APPENDIX_LESSONS : chapterLessons(lesson.chapter);
+    crumb = `<a href="#/physics">${t().nav_physics}</a>${ch?` ← <a href="#/physics/${ch.key}">${ch[lang]}</a>`:''} ← ${lesson.title[lang]}`;
+  } else {
+    ch = basicsChapterOf(lesson.chapter);
+    siblings = basicsChapterLessons(lesson.chapter);
+    crumb = `<a href="#/basics">${t().nav_basics}</a>${ch?` ← <a href="#/basics/${ch.key}">${ch[lang]}</a>`:''} ← ${lesson.title[lang]}`;
+  }
   const idx = siblings.findIndex(l=>l.slug===slug);
   const prev = idx>0 ? siblings[idx-1] : null;
   const next = idx>=0 && idx<siblings.length-1 ? siblings[idx+1] : null;
   return `<div class="page"><div class="wrap">
-    <p class="crumb"><a href="#/physics">${t().nav_physics}</a>${ch?` ← <a href="#/physics/${ch.key}">${ch[lang]}</a>`:''} ← ${lesson.title[lang]}</p>
+    <p class="crumb">${crumb}</p>
     <h1>${lesson.title[lang]}</h1>
     <p class="intro">${glossify(lesson.intro[lang])}</p>
     ${lesson.sections.map(sectionHTML).join('')}
@@ -267,47 +280,67 @@ function viewProduction(){
   </div></div>`;
 }
 
-/* ---------- ANATOMY ---------- */
-let viewerState = { frame: 7, labels: true, test: false, timer: null };
-function viewAnatomy(){
+/* ---------- ANATOMY VIEWERS ---------- */
+let viewerState = { set:'chest', frame: 7, labels: true, test: false, timer: null };
+const CHEST_SET = { slices: SLICES, src: sliceSrc, levelOf, labels: LABELS, total:'106', head:'CT Chest — Axial',
+  title:()=>t().ana_title, intro:()=>t().ana_intro, crumb:()=>t().ana_crumb, note:()=>t().v_note };
+function activeSet(){
+  if(viewerState.set === 'chest') return CHEST_SET;
+  const s = ANATOMY_SETS[viewerState.set];
+  if(!s) return null;
+  return { ...s, title:()=>s.title[lang], intro:()=>s.intro[lang], crumb:()=>s.crumb[lang], note:()=>s.note[lang] };
+}
+function viewAnatomy(setKey = 'chest'){
+  if(setKey !== viewerState.set){ viewerState.set = setKey; viewerState.frame = setKey==='chest' ? 7 : 0; }
+  const S = activeSet();
+  if(!S || !S.slices?.length){
+    const v = Object.values(BASICS_VIEWERS).find(x => x.link === '#/anatomy-' + setKey);
+    return `<div class="page"><div class="wrap">
+      <p class="crumb"><a href="#/basics">${t().nav_basics}</a></p>
+      <h1>${v ? v.title[lang] : ''}</h1>
+      <p class="intro"><span class="badge soon">${t().soon}</span></p>
+    </div></div>`;
+  }
   return `<div class="page"><div class="wrap">
-    <p class="crumb">${t().ana_crumb}</p>
-    <h1>${t().ana_title}</h1>
-    <p class="intro">${t().ana_intro}</p>
+    <p class="crumb">${S.crumb()}</p>
+    <h1>${S.title()}</h1>
+    <p class="intro">${S.intro()}</p>
     <div class="viewer reveal in">
-      <div class="v-head"><b>CT Chest — Axial</b>
+      <div class="v-head"><b>${S.head}</b>
         <span>${t().level} <span class="level-name" id="v-level"></span></span>
-        <span style="margin-inline-start:auto">${t().v_slice} <b id="v-num"></b> / 106</span></div>
+        <span style="margin-inline-start:auto">${t().v_slice} <b id="v-num"></b> / ${S.total}</span></div>
       <div class="test-banner" id="v-banner">${t().v_testbanner}</div>
       <div class="frame-box" id="v-box">
-        <img class="slice" id="v-img" alt="Axial chest CT slice" draggable="false"/>
+        <img class="slice" id="v-img" alt="Axial CT slice" draggable="false"/>
         <div id="v-labels"></div>
       </div>
-      <input type="range" id="v-slider" min="0" max="${SLICES.length-1}" value="${viewerState.frame}" step="1"/>
+      <input type="range" id="v-slider" min="0" max="${S.slices.length-1}" value="${viewerState.frame}" step="1"/>
       <div class="v-controls">
         <button class="v-btn" id="v-play">${t().v_play}</button>
         <button class="v-btn on" id="v-labels-btn">${t().v_labels}</button>
         <button class="v-btn" id="v-test-btn">${t().v_test}</button>
       </div>
-      <p class="v-note">${t().v_note}</p>
+      <p class="v-note">${S.note()}</p>
     </div>
   </div></div>`;
 }
 function setFrame(i){
-  viewerState.frame = Math.max(0, Math.min(SLICES.length-1, i));
-  const n = SLICES[viewerState.frame];
-  $('#v-img').src = sliceSrc(n);
+  const S = activeSet(); if(!S) return;
+  viewerState.frame = Math.max(0, Math.min(S.slices.length-1, i));
+  const n = S.slices[viewerState.frame];
+  $('#v-img').src = S.src(n);
   $('#v-num').textContent = n;
-  $('#v-level').textContent = levelOf(viewerState.frame)[lang];
+  $('#v-level').textContent = S.levelOf(viewerState.frame)[lang];
   $('#v-slider').value = viewerState.frame;
   const box = $('#v-labels');
-  const labs = LABELS[viewerState.frame];
+  const labs = S.labels[viewerState.frame];
   if(labs && viewerState.labels && !viewerState.test){
-    box.innerHTML = labs.map(l=>`<span class="slice-label" style="inset-inline-start:${l.x}%;top:${l.y}%">${l[lang]}</span>`).join('');
+    box.innerHTML = labs.map(l=>`<span class="slice-label" style="left:${l.x}%;top:${l.y}%">${l[lang]}</span>`).join('');
   } else box.innerHTML = '';
 }
 function bindAnatomy(){
-  SLICES.forEach(n => { const im = new Image(); im.src = sliceSrc(n); });
+  const S = activeSet(); if(!S) return;
+  S.slices.forEach(n => { const im = new Image(); im.src = S.src(n); });
   setFrame(viewerState.frame);
   $('#v-slider').oninput = e => setFrame(+e.target.value);
   $('#v-box').addEventListener('wheel', e => { e.preventDefault(); setFrame(viewerState.frame + (e.deltaY>0?1:-1)); }, {passive:false});
@@ -317,7 +350,7 @@ function bindAnatomy(){
     if(viewerState.timer){ stop(); return; }
     playBtn.textContent = t().v_pause;
     viewerState.timer = setInterval(()=> {
-      if(viewerState.frame >= SLICES.length-1){ stop(); return; }
+      if(viewerState.frame >= S.slices.length-1){ stop(); return; }
       setFrame(viewerState.frame+1);
     }, 450);
   };
@@ -330,6 +363,73 @@ function bindAnatomy(){
     $('#v-banner').classList.toggle('show', viewerState.test);
     setFrame(viewerState.frame);
   };
+}
+
+/* ---------- BASICS INDEX, CHAPTERS & QUIZZES ---------- */
+function viewBasicsIndex(){
+  const cards = BASICS_CHAPTERS.map((c,i)=>{
+    const n = basicsChapterLessons(c.key).length + (BASICS_VIEWERS[c.key] ? 1 : 0) + (basicsChapterQuiz(c.key) ? 1 : 0);
+    return `<div class="card reveal" style="transition-delay:${i*50}ms">
+      <div class="ico">${c.icon}</div><h3>${c[lang]}</h3>
+      <p>${basicsChapterLessons(c.key).length} ${t().lessons_word}${BASICS_VIEWERS[c.key] ? ` + ${t().img_anatomy}` : ''}${basicsChapterQuiz(c.key) ? ` + ${t().section_quiz}` : ''}</p>
+      ${n?`<span class="badge live">${t().live}</span>`:`<span class="badge soon">${t().soon}</span>`}
+      ${n?`<a class="go" href="#/basics/${c.key}">${t().open}</a>`:''}
+    </div>`;
+  }).join('');
+  return `<div class="page"><div class="wrap">
+    <p class="crumb">${t().crumb_home} ← ${t().nav_basics}</p>
+    <h1>${t().basics_title}</h1>
+    <p class="intro">${t().basics_sub}</p>
+    <div class="grid">${cards}</div>
+  </div></div>`;
+}
+function viewBasicsChapter(key){
+  const ch = basicsChapterOf(key); if(!ch) return viewBasicsIndex();
+  const lessons = basicsChapterLessons(key);
+  const viewer = BASICS_VIEWERS[key];
+  const quiz = basicsChapterQuiz(key);
+  let n = 0;
+  const rows = [];
+  if(viewer){
+    n++;
+    rows.push(`<a class="lesson-row reveal" href="${viewer.link}">
+      <span class="lesson-num">${n}</span>
+      <span class="lesson-name">${viewer.title[lang]}</span>
+      <span class="badge live">${t().img_anatomy}</span>
+      <span class="lesson-arrow">←</span></a>`);
+  }
+  lessons.forEach(l=>{
+    n++;
+    rows.push(`<a class="lesson-row reveal" href="#/lesson/${l.slug}">
+      <span class="lesson-num">${n}</span>
+      <span class="lesson-name">${l.title[lang]}</span>
+      <span class="lesson-arrow">←</span></a>`);
+  });
+  if(quiz){
+    n++;
+    rows.push(`<a class="lesson-row reveal" href="#/quiz/${quiz.slug}">
+      <span class="lesson-num">${n}</span>
+      <span class="lesson-name">${quiz.title[lang]}</span>
+      <span class="badge live">${t().section_quiz} — ${quiz.questions.length} ${t().questions_word}</span>
+      <span class="lesson-arrow">←</span></a>`);
+  }
+  return `<div class="page"><div class="wrap">
+    <p class="crumb"><a href="#/basics">${t().nav_basics}</a> ← ${ch[lang]}</p>
+    <h1>${ch.icon} ${ch[lang]}</h1>
+    <p class="intro">${rows.length} ${t().lessons_word}</p>
+    <div class="lesson-list">${rows.join('')}</div>
+  </div></div>`;
+}
+function viewQuizPage(slug){
+  const quiz = findQuiz(slug);
+  if(!quiz) return viewBasicsIndex();
+  const ch = basicsChapterOf(quiz.chapter);
+  return `<div class="page"><div class="wrap">
+    <p class="crumb"><a href="#/basics">${t().nav_basics}</a>${ch?` ← <a href="#/basics/${ch.key}">${ch[lang]}</a>`:''} ← ${quiz.title[lang]}</p>
+    <h1>${quiz.title[lang]}</h1>
+    <p class="intro">${glossify(quiz.intro[lang])}</p>
+    <div class="panel reveal"><div id="quiz">${quizHTML(quiz.questions)}</div><p class="quiz-score" id="quiz-score"></p></div>
+  </div></div>`;
 }
 
 /* ---------- DICOM ---------- */
@@ -359,14 +459,24 @@ function render(){
   stopViewerTimer();
   if(route === '#/physics') app.innerHTML = viewPhysicsIndex();
   else if(route.startsWith('#/physics/')) app.innerHTML = viewChapter(route.split('/')[2]);
+  else if(route === '#/basics') app.innerHTML = viewBasicsIndex();
+  else if(route.startsWith('#/basics/')) app.innerHTML = viewBasicsChapter(route.split('/')[2]);
+  else if(route.startsWith('#/quiz/')){
+    const slug = route.split('/')[2];
+    app.innerHTML = viewQuizPage(slug);
+    const quiz = findQuiz(slug);
+    if(quiz) bindQuiz(quiz.questions);
+  }
   else if(route.startsWith('#/lesson/')){
     const slug = route.split('/')[2];
     app.innerHTML = viewLesson(slug);
-    const lesson = findLesson(slug);
+    const lesson = findAnyLesson(slug);
     if(lesson?.featured) bindQuiz(QUIZ);
     else if(lesson?.quiz) bindQuiz(lesson.quiz);
   }
-  else if(route === '#/anatomy'){ app.innerHTML = viewAnatomy(); bindAnatomy(); }
+  else if(route === '#/anatomy'){ app.innerHTML = viewAnatomy('chest'); bindAnatomy(); }
+  else if(route === '#/anatomy-abdomen'){ app.innerHTML = viewAnatomy('abdomen'); bindAnatomy(); }
+  else if(route === '#/anatomy-head'){ app.innerHTML = viewAnatomy('head'); bindAnatomy(); }
   else if(route === '#/dicom'){ app.innerHTML = viewDicom(); }
   else app.innerHTML = viewHome();
   bindGloss(); bindReveal();
