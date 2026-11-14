@@ -38,6 +38,16 @@ export const LABELS = {
     {x:80,y:46,     ar:'الرئة اليسرى', en:'Left lung'},
     {x:58.6,y:63.5, ar:'جسم الفقرة', en:'Vertebral body'},
   ],
+  9: [ // slice 46
+    {x:45,y:49, ar:'القصبة الرئيسية اليمنى', en:'Right main bronchus'},
+    {x:58,y:48, ar:'القصبة الرئيسية اليسرى', en:'Left main bronchus'},
+    {x:19,y:45, ar:'ضلع', en:'Rib'},
+  ],
+  16: [ // slice 81
+    {x:35,y:45, ar:'الكبد', en:'Liver'},
+    {x:46,y:57, ar:'الأبهر النازل', en:'Descending aorta'},
+    {x:30,y:68, ar:'قاعدة الرئة اليمنى', en:'Right lung base'},
+  ],
 };
 
 export const GLOSSARY = {
@@ -181,6 +191,16 @@ export const T = {
     basics_title:'أساسيات الأشعة — Radiology Basics',
     basics_sub:'وسائط التصوير وتشريح وباتولوجي الصدر والبطن والرأس، مع عارض صور تفاعلي وكويز لكل منطقة.',
     section_quiz:'كويز المنطقة', img_anatomy:'تشريح مصوّر تفاعلي', questions_word:'أسئلة',
+    nav_exams:'الامتحانات',
+    exams_title:'امتحانات التشريح — Mock Anatomy Exams',
+    exams_sub:'امتحانات مصوّرة بأسلوب «سمِّ التركيب المُشار إليه» على مقاطع CT حقيقية سليمة. اختر الإجابة الصحيحة من أربعة خيارات، وستظهر نتيجتك ومراجعة كاملة في النهاية.',
+    exams_how_t:'كيف يعمل الامتحان؟',
+    exams_how:'1) تظهر صورة مقطع CT وعليها نقطة صفراء على تركيب تشريحي. 2) اختر اسم التركيب من الخيارات الأربعة — تُقفل الإجابة فورًا وتظهر الصحيحة. 3) في النهاية: درجتك، ووقتك، ومراجعة لكل سؤال. تُحفظ أفضل نتيجة على جهازك.',
+    exam_start:'ابدأ الامتحان', exam_q:'سؤال', exam_of:'من',
+    exam_next:'التالي', exam_result_btn:'عرض النتيجة',
+    exam_result_t:'نتيجة الامتحان', exam_score:'الدرجة', exam_time:'الوقت',
+    exam_best:'أفضل نتيجة سابقة', exam_retake:'إعادة الامتحان', exam_back:'كل الامتحانات',
+    exam_review_t:'مراجعة الأسئلة', exam_you:'إجابتك', exam_right:'الصحيحة',
   },
   en:{
     dir:'ltr', langName:'العربية',
@@ -251,5 +271,15 @@ export const T = {
     basics_title:'Radiology Basics',
     basics_sub:'Imaging modalities plus chest, abdomen and head anatomy and pathology, with an interactive image viewer and a quiz for each region.',
     section_quiz:'Section quiz', img_anatomy:'Interactive image anatomy', questions_word:'questions',
+    nav_exams:'Exams',
+    exams_title:'Mock Anatomy Exams',
+    exams_sub:'Image-based exams in the "name the arrowed structure" style, on real normal CT slices. Pick the correct answer from four options; get your score and a full review at the end.',
+    exams_how_t:'How does it work?',
+    exams_how:'1) A CT slice appears with a yellow marker on an anatomical structure. 2) Choose its name from the four options — the answer locks instantly and the correct one is shown. 3) At the end: your score, your time, and a review of every question. Your best score is saved on your device.',
+    exam_start:'Start exam', exam_q:'Question', exam_of:'of',
+    exam_next:'Next', exam_result_btn:'See result',
+    exam_result_t:'Exam result', exam_score:'Score', exam_time:'Time',
+    exam_best:'Best score so far', exam_retake:'Retake exam', exam_back:'All exams',
+    exam_review_t:'Review', exam_you:'Your answer', exam_right:'Correct',
   }
 };

@@ -189,3 +189,36 @@ footer.site .cols{display:flex; gap:26px; flex-wrap:wrap; justify-content:space-
 }
 .v-nav-btn:hover{text-decoration:none}
 .v-nav-btn small{color:var(--muted); font-weight:600}
+
+/* mock exams */
+.progress{height:8px; background:#132029; border-radius:99px; overflow:hidden; margin:10px 0 16px}
+.progress span{display:block; height:100%; background:var(--accent); border-radius:99px; transition:width .35s ease}
+.exam-meta{display:flex; justify-content:space-between; color:var(--muted); font-weight:700; margin-top:14px}
+.exam-box{position:relative; max-width:640px; margin:0 auto; border-radius:10px; overflow:hidden; background:#000}
+.exam-box img.slice{width:100%; display:block; user-select:none}
+.exam-marker{position:absolute; width:18px; height:18px; margin:-9px 0 0 -9px; border-radius:50%;
+  background:#ffd94d; box-shadow:0 0 0 4px rgba(255,217,77,.35), 0 0 14px rgba(255,217,77,.8);
+  animation:markerPulse 1.2s ease-in-out infinite; pointer-events:none}
+@keyframes markerPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.35)}}
+.opt-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; max-width:640px; margin:16px auto 0}
+.opt-btn{background:var(--card); color:var(--ink); border:1px solid #22343f; border-radius:12px;
+  padding:13px 12px; font-family:inherit; font-size:1rem; font-weight:700; cursor:pointer; transition:border-color .15s, background .15s}
+.opt-btn:hover:not(:disabled){border-color:var(--accent)}
+.opt-btn:disabled{cursor:default; opacity:.85}
+.opt-btn.correct{background:#123d24; border-color:#2ea36b; color:#b9f4d2; opacity:1}
+.opt-btn.wrong{background:#3d1620; border-color:#a32e4b; color:#f6c3cd; opacity:1}
+.exam-nav{display:flex; gap:10px; justify-content:center; margin:18px 0 8px; flex-wrap:wrap}
+.exam-nav .v-btn{text-decoration:none}
+.result-panel{text-align:center}
+.big-score{font-size:3.2rem; font-weight:900; color:var(--accent); margin:6px 0}
+.review-title{margin:26px 0 10px}
+.review-list{display:flex; flex-direction:column; gap:8px; margin-bottom:50px}
+.review-row{display:flex; gap:12px; align-items:center; background:var(--card); border:1px solid #22343f;
+  border-radius:10px; padding:10px 14px}
+.review-row.ok{border-inline-start:4px solid #2ea36b}
+.review-row.bad{border-inline-start:4px solid #a32e4b}
+.review-num{font-weight:900; color:var(--muted); min-width:26px}
+.review-name{font-weight:700}
+.review-pick{margin-inline-start:auto; color:var(--muted); font-size:.9rem}
+.review-row.ok .review-pick{color:#2ea36b; font-weight:900}
+@media (max-width:560px){ .opt-grid{grid-template-columns:1fr} }

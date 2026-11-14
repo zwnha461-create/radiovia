@@ -2,6 +2,7 @@ import { T, SLICES, sliceSrc, LEVELS, levelOf, LABELS, GLOSSARY, QUIZ, VIEWERS }
 import { CHAPTERS, chapterLessons, APPENDIX_LESSONS, findLesson, chapterOf } from './lessons/index.js';
 import { BASICS_CHAPTERS, basicsChapterLessons, basicsChapterQuiz, BASICS_VIEWERS, findBasicsLesson, findQuiz, basicsChapterOf } from './basics/index.js';
 import { ANATOMY_SETS } from './anatomy-data.js';
+import { EXAMS } from './exams.js';
 
 const findAnyLesson = slug => findLesson(slug) || findBasicsLesson(slug);
 
@@ -19,6 +20,7 @@ function renderChrome(){
     ['#/', t().nav_home, route==='#/'],
     ['#/basics', t().nav_basics, route.startsWith('#/basics') || route.startsWith('#/quiz') || route.startsWith('#/anatomy')],
     ['#/physics', t().nav_physics, route.startsWith('#/physics') || route.startsWith('#/lesson')],
+    ['#/exams', t().nav_exams, route.startsWith('#/exams') || route.startsWith('#/exam/')],
     ['#/dicom', t().nav_dicom, route==='#/dicom'],
   ];
   $('#site-header').innerHTML = `<div class="site"><div class="wrap"><div class="bar">
@@ -108,7 +110,7 @@ function viewHome(){
   const cards = [
     {ico:'🫁', tt:t().c_basics_t, p:t().c_basics_p, badge:`<span class="badge live">${t().live}</span>`, link:'#/basics'},
     {ico:'⚛️', tt:t().c_physics_t, p:t().c_physics_p, badge:`<span class="badge live">${t().live}</span>`, link:'#/physics'},
-    {ico:'🎯', tt:t().c_exams_t, p:t().c_exams_p, badge:`<span class="badge soon">${t().soon}</span>`, link:null},
+    {ico:'🎯', tt:t().c_exams_t, p:t().c_exams_p, badge:`<span class="badge live">${t().live}</span>`, link:'#/exams'},
     {ico:'🖥️', tt:t().c_dicom_t, p:t().c_dicom_p, badge:`<span class="badge live">${t().live}</span>`, link:'#/dicom'},
   ];
   return `<section class="hero"><div class="wrap">
@@ -432,6 +434,117 @@ function viewQuizPage(slug){
   </div></div>`;
 }
 
+/* ---------- MOCK ANATOMY EXAMS ---------- */
+function examSrc(q){
+  if(q.set === 'chest') return sliceSrc(SLICES[q.frame]);
+  const S = ANATOMY_SETS[q.set];
+  return S.src(S.slices[q.frame]);
+}
+function viewExamsIndex(){
+  const cards = EXAMS.map((e,i)=>{
+    const best = localStorage.getItem('radiovia_best_' + e.id);
+    return `<div class="card reveal" style="transition-delay:${i*50}ms">
+      <div class="ico">🎯</div><h3>${e.title[lang]}</h3>
+      <p>${e.desc[lang]}</p>
+      <p>${e.questions.length} ${t().questions_word}${best ? ` — ${t().exam_best}: ${best}%` : ''}</p>
+      <span class="badge live">${t().live}</span>
+      <a class="go" href="#/exam/${e.id}">${t().exam_start}</a>
+    </div>`;
+  }).join('');
+  return `<div class="page"><div class="wrap">
+    <p class="crumb">${t().crumb_home} ← ${t().nav_exams}</p>
+    <h1>${t().exams_title}</h1>
+    <p class="intro">${t().exams_sub}</p>
+    <div class="grid">${cards}</div>
+    <div class="panel reveal"><h3>${t().exams_how_t}</h3><p>${t().exams_how}</p></div>
+  </div></div>`;
+}
+let examState = null;
+function viewExam(id){
+  const exam = EXAMS.find(e => e.id === id);
+  if(!exam) return viewExamsIndex();
+  return `<div class="page"><div class="wrap">
+    <p class="crumb"><a href="#/exams">${t().nav_exams}</a> ← ${exam.title[lang]}</p>
+    <h1>${exam.title[lang]}</h1>
+    <div id="exam-root"></div>
+  </div></div>`;
+}
+function fmtTime(s){ return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
+function bindExam(id){
+  const exam = EXAMS.find(e => e.id === id);
+  if(!exam) return;
+  exam.questions.forEach(q => { const im = new Image(); im.src = examSrc(q); });
+  examState = { exam, idx: 0, picked: [], start: Date.now(), locked: false, timer: null };
+  const root = $('#exam-root');
+  const drawTimer = () => {
+    const elx = $('#exam-clock');
+    if(elx) elx.textContent = fmtTime(Math.floor((Date.now() - examState.start)/1000));
+  };
+  examState.timer = setInterval(drawTimer, 1000);
+  function renderQ(){
+    const st = examState, q = st.exam.questions[st.idx], n = st.exam.questions.length;
+    st.locked = false;
+    root.innerHTML = `
+      <div class="exam-meta"><span>${t().exam_q} ${st.idx+1} ${t().exam_of} ${n}</span><span>⏱ <span id="exam-clock">${fmtTime(Math.floor((Date.now()-st.start)/1000))}</span></span></div>
+      <div class="progress"><span style="width:${(st.idx)/n*100}%"></span></div>
+      <div class="exam-box">
+        <img class="slice" src="${examSrc(q)}" alt="CT slice" draggable="false"/>
+        <span class="exam-marker" style="left:${q.x}%;top:${q.y}%"></span>
+      </div>
+      <div class="opt-grid">${q.opts.map((o,i)=>`<button class="opt-btn" data-i="${i}">${o[lang]}</button>`).join('')}</div>
+      <div class="exam-nav"></div>`;
+    root.querySelectorAll('.opt-btn').forEach(btn => btn.onclick = () => {
+      if(st.locked) return;
+      st.locked = true;
+      const pick = +btn.dataset.i;
+      st.picked[st.idx] = pick;
+      root.querySelectorAll('.opt-btn').forEach(b => {
+        const i = +b.dataset.i;
+        if(i === q.a) b.classList.add('correct');
+        else if(i === pick) b.classList.add('wrong');
+        b.disabled = true;
+      });
+      const last = st.idx === n - 1;
+      root.querySelector('.exam-nav').innerHTML =
+        `<button class="v-btn on" id="exam-next">${last ? t().exam_result_btn : t().exam_next}</button>`;
+      $('#exam-next').onclick = () => { if(last) renderResult(); else { st.idx++; renderQ(); } };
+    });
+  }
+  function renderResult(){
+    const st = examState;
+    clearInterval(st.timer);
+    const n = st.exam.questions.length;
+    const correct = st.exam.questions.reduce((s,q,i) => s + (st.picked[i] === q.a ? 1 : 0), 0);
+    const pct = Math.round(correct / n * 100);
+    const secs = Math.floor((Date.now() - st.start)/1000);
+    const prev = +(localStorage.getItem('radiovia_best_' + st.exam.id) || 0);
+    if(pct > prev) localStorage.setItem('radiovia_best_' + st.exam.id, pct);
+    const rows = st.exam.questions.map((q,i) => {
+      const ok = st.picked[i] === q.a;
+      return `<div class="review-row ${ok ? 'ok' : 'bad'}">
+        <span class="review-num">${i+1}</span>
+        <span class="review-name">${q.opts[q.a][lang]}</span>
+        <span class="review-pick">${ok ? '✓' : `${t().exam_you}: ${q.opts[st.picked[i]][lang]}`}</span>
+      </div>`;
+    }).join('');
+    root.innerHTML = `
+      <div class="panel result-panel">
+        <h2>${t().exam_result_t}</h2>
+        <div class="big-score">${pct}%</div>
+        <p>${t().exam_score}: ${correct} / ${n} — ${t().exam_time}: ${fmtTime(secs)}${prev ? ` — ${t().exam_best}: ${Math.max(prev, pct)}%` : ''}</p>
+        <div class="exam-nav">
+          <button class="v-btn on" id="exam-retake">${t().exam_retake}</button>
+          <a class="v-btn" href="#/exams">${t().exam_back}</a>
+        </div>
+      </div>
+      <h3 class="review-title">${t().exam_review_t}</h3>
+      <div class="review-list">${rows}</div>`;
+    $('#exam-retake').onclick = () => bindExam(st.exam.id);
+    window.scrollTo({top: 0});
+  }
+  renderQ();
+}
+
 /* ---------- DICOM ---------- */
 function viewDicom(){
   const cards = VIEWERS.map((v,i)=>`<div class="card reveal" style="transition-delay:${i*60}ms">
@@ -477,6 +590,12 @@ function render(){
   else if(route === '#/anatomy'){ app.innerHTML = viewAnatomy('chest'); bindAnatomy(); }
   else if(route === '#/anatomy-abdomen'){ app.innerHTML = viewAnatomy('abdomen'); bindAnatomy(); }
   else if(route === '#/anatomy-head'){ app.innerHTML = viewAnatomy('head'); bindAnatomy(); }
+  else if(route === '#/exams') app.innerHTML = viewExamsIndex();
+  else if(route.startsWith('#/exam/')){
+    const id = route.split('/')[2];
+    app.innerHTML = viewExam(id);
+    bindExam(id);
+  }
   else if(route === '#/dicom'){ app.innerHTML = viewDicom(); }
   else app.innerHTML = viewHome();
   bindGloss(); bindReveal();
