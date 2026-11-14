@@ -194,7 +194,7 @@ function bindAccount(){
     const email = $('#acct-email').value.trim(), pw = $('#acct-pw').value;
     try {
       if(mode === 'login') await signIn(email, pw); else await register(email, pw);
-      // onUser listener re-renders with the signed-in state + runs syncOnLogin
+      render(); // the onUser listener also re-renders after sync; never leave the form hanging
     } catch {
       err.textContent = t().acct_err;
       btn.disabled = false;
@@ -1045,8 +1045,8 @@ render();
 onUser(async user => {
   const was = currentUser?.uid || null;
   currentUser = user;
-  if(user && was !== user.uid) await syncOnLogin();
-  render();
+  render(); // never block the UI on the cloud sync
+  if(user && was !== user.uid){ await syncOnLogin(); render(); }
 }).catch(() => {});
 
 /* ---------- PWA ---------- */

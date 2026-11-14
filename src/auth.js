@@ -17,7 +17,7 @@ async function load() {
     authApi: auth,
     fsApi: fs,
     auth: auth.getAuth(fbApp),
-    db: fs.getFirestore(fbApp),
+    db: fs.initializeFirestore(fbApp, { experimentalAutoDetectLongPolling: true }),
   };
   return mod;
 }
@@ -40,7 +40,8 @@ export async function signOutUser() {
 }
 export async function pullProgress(uid) {
   const m = await load();
-  const snap = await m.fsApi.getDoc(m.fsApi.doc(m.db, 'users', uid));
+  const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('firestore-timeout')), 15000));
+  const snap = await Promise.race([m.fsApi.getDoc(m.fsApi.doc(m.db, 'users', uid)), timeout]);
   return snap.exists() ? snap.data() : null;
 }
 export async function pushProgress(uid, data) {
