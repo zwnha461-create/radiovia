@@ -192,14 +192,18 @@ function bindAccount(){
     const err = $('#acct-err'); const btn = $('#acct-submit');
     btn.disabled = true; btn.textContent = t().acct_working; err.textContent = '';
     const email = $('#acct-email').value.trim(), pw = $('#acct-pw').value;
-    try {
-      if(mode === 'login') await signIn(email, pw); else await register(email, pw);
-      render(); // the onUser listener also re-renders after sync; never leave the form hanging
-    } catch {
-      err.textContent = t().acct_err;
+    const freeBtn = () => {
+      if(!$('#acct-form')) return; // user navigated away or already signed in
       btn.disabled = false;
       btn.textContent = mode === 'login' ? t().acct_login : t().acct_register;
-    }
+    };
+    const showErr = () => { err.textContent = t().acct_err; freeBtn(); };
+    const p = mode === 'login' ? signIn(email, pw) : register(email, pw);
+    p.catch(showErr);
+    // Never trap the user on a disabled button: free the UI after 12 s;
+    // when auth actually lands, the onUser listener renders the signed-in panel.
+    await Promise.race([p.catch(() => {}), new Promise(r => setTimeout(r, 12000))]);
+    if(currentUser) render(); else freeBtn();
   };
 }
 
