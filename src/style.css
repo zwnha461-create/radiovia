@@ -222,3 +222,39 @@ footer.site .cols{display:flex; gap:26px; flex-wrap:wrap; justify-content:space-
 .review-pick{margin-inline-start:auto; color:var(--muted); font-size:.9rem}
 .review-row.ok .review-pick{color:#2ea36b; font-weight:900}
 @media (max-width:560px){ .opt-grid{grid-template-columns:1fr} }
+
+/* phase 5: labs, windowing, search, flashcards, mistakes, pacs */
+.lab-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin:14px 0}
+.lab-grid label{display:flex; flex-direction:column; gap:6px; color:var(--muted); font-weight:700; font-size:.92rem}
+.lab-grid input{background:#0d1820; border:1px solid #2b3f4c; border-radius:10px; color:var(--ink);
+  padding:10px 12px; font-family:inherit; font-size:1rem}
+.lab-result{font-size:1.15rem; margin:10px 0}
+.lab-result b{color:var(--accent); font-size:1.4rem}
+.lab-canvas{width:100%; height:auto; background:#0d1820; border-radius:10px; margin-top:8px}
+.lab-presets{display:flex; gap:8px; flex-wrap:wrap; align-items:center; color:var(--muted)}
+.win-controls{display:grid; grid-template-columns:1fr 1fr; gap:16px; max-width:640px; margin:16px auto 0}
+.win-controls label{color:var(--muted); font-weight:700; display:flex; flex-direction:column; gap:6px}
+.win-controls input[type=range]{width:100%; accent-color:var(--accent)}
+.win-presets,.win-src{display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:14px; color:var(--muted); align-items:center}
+#win-canvas{width:100%; display:block}
+.search-bar{display:flex; gap:10px; margin:18px 0}
+.search-bar input{flex:1; background:#0d1820; border:1px solid #2b3f4c; border-radius:12px; color:var(--ink);
+  padding:13px 16px; font-family:inherit; font-size:1.05rem}
+.flashcard{max-width:560px; margin:18px auto; min-height:220px; border-radius:16px; cursor:pointer;
+  background:linear-gradient(145deg,#12242f,#0d1820); border:1px solid #2b3f4c;
+  display:flex; align-items:center; justify-content:center; text-align:center; padding:28px;
+  transition:transform .35s ease, border-color .2s}
+.flashcard:hover{border-color:var(--accent)}
+.flashcard.flipped{background:linear-gradient(145deg,#0e2a33,#0d1f26)}
+.fc-term{font-size:1.7rem; font-weight:900; color:var(--accent)}
+.fc-hint{color:var(--muted); margin-top:12px}
+.fc-back p{font-size:1.08rem; line-height:1.9}
+.fc-reset{text-align:center; margin-top:6px}
+.mis-main{line-height:1.8}
+.mis-correct{color:#2ea36b; font-weight:700}
+.mis-picked{color:#e58aa0}
+.mis-src{color:var(--accent); font-size:.88rem}
+body.pacs{background:#000}
+body.pacs .panel, body.pacs .card, body.pacs .review-row{background:#050505; border-color:#1c1c1c}
+body.pacs header{background:#000}
+@media (max-width:560px){ .win-controls{grid-template-columns:1fr} }

@@ -22,6 +22,7 @@ function renderChrome(){
     ['#/physics', t().nav_physics, route.startsWith('#/physics') || route.startsWith('#/lesson')],
     ['#/exams', t().nav_exams, route.startsWith('#/exams') || route.startsWith('#/exam/')],
     ['#/dicom', t().nav_dicom, route==='#/dicom'],
+    ['#/search', '🔍 ' + t().nav_search, route==='#/search'],
   ];
   $('#site-header').innerHTML = `<div class="site"><div class="wrap"><div class="bar">
     <a class="logo" href="#/">${LOGO}<span>Radiovia<small>${lang==='ar'?'راديوفيا — تعليم الأشعة التشخيصية':'Diagnostic radiology education'}</small></span></a>
@@ -78,7 +79,16 @@ function quizHTML(quiz){
       <div class="quiz-fb"></div>
     </div>`).join('');
 }
-function bindQuiz(quiz){
+/* ---------- MISTAKES LOG ---------- */
+const MIS_KEY = 'radiovia_mistakes_v1';
+function loadMistakes(){ try { return JSON.parse(localStorage.getItem(MIS_KEY)) || []; } catch { return []; } }
+function recordMistake(m){
+  const all = loadMistakes();
+  all.push({ ...m, ts: Date.now() });
+  try { localStorage.setItem(MIS_KEY, JSON.stringify(all.slice(-300))); } catch {}
+}
+
+function bindQuiz(quiz, ctx){
   const answered = new Set(); let score = 0;
   document.querySelectorAll('.quiz-q').forEach(qEl=>{
     const qi = +qEl.dataset.q, q = quiz[qi]; if(!q) return;
@@ -94,6 +104,7 @@ function bindQuiz(quiz){
           b.disabled = true;
         });
         if(oi===q.a) score++;
+        else if(ctx) recordMistake({ kind: ctx.kind, slug: ctx.slug, title: ctx.title, q: q.q, correct: q.opts[q.a], picked: q.opts[oi] });
         fb.textContent = (oi===q.a ? '✓ ' : '✗ ') + q.why[lang];
         fb.classList.add('show');
         if(answered.size===quiz.length){
@@ -136,6 +147,14 @@ function viewHome(){
       <div class="ico">${c.ico}</div><h3>${c.tt}</h3><p>${c.p}</p>${c.badge}
       ${c.link?`<a class="go" href="${c.link}">${t().open}</a>`:''}
     </div>`).join('')}</div>
+    <h2 class="section-title" style="margin-top:44px">${t().tools_title}</h2>
+    <div class="grid">
+      <div class="card reveal"><div class="ico">🧪</div><h3>${t().labs_card_t}</h3><p>${t().labs_card_p}</p><span class="badge live">${t().live}</span><a class="go" href="#/labs">${t().open}</a></div>
+      <div class="card reveal"><div class="ico">🪟</div><h3>${t().win_card_t}</h3><p>${t().win_card_p}</p><span class="badge live">${t().live}</span><a class="go" href="#/windowing">${t().open}</a></div>
+      <div class="card reveal"><div class="ico">🃏</div><h3>${t().cards_card_t}</h3><p>${t().cards_card_p}</p><span class="badge live">${t().live}</span><a class="go" href="#/flashcards">${t().open}</a></div>
+      <div class="card reveal"><div class="ico">📝</div><h3>${t().mis_card_t}</h3><p>${t().mis_card_p}</p><span class="badge live">${t().live}</span><a class="go" href="#/mistakes">${t().open}</a></div>
+      <div class="card reveal"><div class="ico">🔍</div><h3>${t().search_card_t}</h3><p>${t().search_card_p}</p><span class="badge live">${t().live}</span><a class="go" href="#/search">${t().open}</a></div>
+    </div>
   </div></section>`;
 }
 
@@ -321,6 +340,7 @@ function viewAnatomy(setKey = 'chest'){
         <button class="v-btn" id="v-play">${t().v_play}</button>
         <button class="v-btn on" id="v-labels-btn">${t().v_labels}</button>
         <button class="v-btn" id="v-test-btn">${t().v_test}</button>
+        <button class="v-btn" id="v-pacs-btn">${t().pacs_btn}</button>
       </div>
       <p class="v-note">${S.note()}</p>
     </div>
@@ -364,6 +384,11 @@ function bindAnatomy(){
     testBtn.classList.toggle('on', viewerState.test);
     $('#v-banner').classList.toggle('show', viewerState.test);
     setFrame(viewerState.frame);
+  };
+  const pacsBtn = $('#v-pacs-btn');
+  if(pacsBtn) pacsBtn.onclick = () => {
+    document.body.classList.toggle('pacs');
+    pacsBtn.classList.toggle('on', document.body.classList.contains('pacs'));
   };
 }
 
@@ -513,6 +538,11 @@ function bindExam(id){
   function renderResult(){
     const st = examState;
     clearInterval(st.timer);
+    st.exam.questions.forEach((q,i) => {
+      if(st.picked[i] !== q.a) recordMistake({ kind:'exam', slug: st.exam.id, title: st.exam.title,
+        q: { ar:'سمِّ التركيب المُشار إليه في هذا المقطع', en:'Name the marked structure in this slice' },
+        correct: q.opts[q.a], picked: q.opts[st.picked[i]] });
+    });
     const n = st.exam.questions.length;
     const correct = st.exam.questions.reduce((s,q,i) => s + (st.picked[i] === q.a ? 1 : 0), 0);
     const pct = Math.round(correct / n * 100);
@@ -545,6 +575,285 @@ function bindExam(id){
   renderQ();
 }
 
+/* ---------- PHYSICS LABS ---------- */
+function viewLabs(){
+  return `<div class="page"><div class="wrap">
+    <p class="crumb">${t().crumb_home} ← ${t().labs_title}</p>
+    <h1>${t().labs_title}</h1>
+    <p class="intro">${t().labs_sub}</p>
+
+    <div class="panel reveal">
+      <h3>☢️ ${t().hl_t}</h3>
+      <div class="lab-grid">
+        <label>${t().hl_a0} <input type="number" id="hl-a0" value="740" min="0" step="any"></label>
+        <label>${t().hl_th} (${t().hl_unit_h}) <input type="number" id="hl-th" value="6" min="0.01" step="any"></label>
+        <label>${t().hl_time} (${t().hl_unit_h}) <input type="number" id="hl-t" value="24" min="0" step="any"></label>
+      </div>
+      <p class="lab-presets">${t().hl_presets}
+        <button class="v-btn hl-pre" data-th="6">Tc-99m · 6 h</button>
+        <button class="v-btn hl-pre" data-th="192">I-131 · 8 d</button>
+        <button class="v-btn hl-pre" data-th="1.83">F-18 · 110 min</button>
+        <button class="v-btn hl-pre" data-th="13.2">I-123 · 13.2 h</button>
+      </p>
+      <div class="lab-result">${t().hl_rem}: <b id="hl-out">—</b></div>
+      <canvas id="hl-curve" class="lab-canvas" width="640" height="180"></canvas>
+      <p class="v-note">${t().hl_note}</p>
+    </div>
+
+    <div class="panel reveal">
+      <h3>📐 ${t().inv_t}</h3>
+      <div class="lab-grid">
+        <label>${t().inv_i} <input type="number" id="inv-i" value="100" min="0" step="any"></label>
+        <label>${t().inv_d1} <input type="number" id="inv-d1" value="1" min="0.01" step="any"></label>
+        <label>${t().inv_d2} <input type="number" id="inv-d2" value="2" min="0.01" step="any"></label>
+      </div>
+      <div class="lab-result">${t().inv_res}: <b id="inv-out">—</b></div>
+      <p class="v-note">${t().inv_note}</p>
+    </div>
+
+    <div class="panel reveal">
+      <h3>⚡ ${t().kvp_t}</h3>
+      <div class="lab-grid">
+        <label>${t().kvp_kvp} <input type="number" id="kvp-old" value="70" min="20" max="150" step="1"></label>
+        <label>${t().kvp_mas} <input type="number" id="kvp-mas" value="20" min="0.1" step="any"></label>
+        <label>${t().kvp_new} <input type="number" id="kvp-new" value="81" min="20" max="150" step="1"></label>
+      </div>
+      <div class="lab-result">${t().kvp_res}: <b id="kvp-out">—</b></div>
+      <p class="v-note">${t().kvp_note}</p>
+    </div>
+  </div></div>`;
+}
+function drawCurve(canvas, fn, xmax, color){
+  const ctx = canvas.getContext('2d'), W = canvas.width, H = canvas.height, P = 28;
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = '#2b3f4c'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(P, 6); ctx.lineTo(P, H-P); ctx.lineTo(W-6, H-P); ctx.stroke();
+  ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.beginPath();
+  for(let px = 0; px <= W-P-8; px += 3){
+    const x = px / (W-P-8) * xmax, y = fn(x);
+    const cx = P + px, cy = (H-P-6) - y * (H-P-14);
+    px === 0 ? ctx.moveTo(cx, cy) : ctx.lineTo(cx, cy);
+  }
+  ctx.stroke();
+}
+function bindLabs(){
+  const num = id => parseFloat($(id).value) || 0;
+  const hl = () => {
+    const a0 = num('#hl-a0'), th = Math.max(num('#hl-th'), 0.001), tt = num('#hl-t');
+    const rem = a0 * Math.pow(0.5, tt / th);
+    $('#hl-out').textContent = rem.toLocaleString(undefined, {maximumFractionDigits: 2});
+    drawCurve($('#hl-curve'), x => Math.pow(0.5, x / th), Math.max(tt, th * 4), '#ffd94d');
+  };
+  ['#hl-a0','#hl-th','#hl-t'].forEach(id => $(id).oninput = hl);
+  document.querySelectorAll('.hl-pre').forEach(b => b.onclick = () => { $('#hl-th').value = b.dataset.th; hl(); });
+  hl();
+  const inv = () => {
+    const i1 = num('#inv-i'), d1 = Math.max(num('#inv-d1'), 0.001), d2 = Math.max(num('#inv-d2'), 0.001);
+    $('#inv-out').textContent = (i1 * Math.pow(d1/d2, 2)).toLocaleString(undefined, {maximumFractionDigits: 3});
+  };
+  ['#inv-i','#inv-d1','#inv-d2'].forEach(id => $(id).oninput = inv);
+  inv();
+  const kvp = () => {
+    const ko = Math.max(num('#kvp-old'), 1), kn = Math.max(num('#kvp-new'), 1), mas = num('#kvp-mas');
+    $('#kvp-out').textContent = (mas * Math.pow(ko/kn, 5)).toLocaleString(undefined, {maximumFractionDigits: 2}) + ' mAs';
+  };
+  ['#kvp-old','#kvp-mas','#kvp-new'].forEach(id => $(id).oninput = kvp);
+  kvp();
+}
+
+/* ---------- CT WINDOWING SIMULATOR ---------- */
+const WIN_SOURCES = [
+  { id:'chest61', ar:'صدر — مستوى القلب', en:'Chest — heart level', src:'assets/chest/slice-061.jpg' },
+  { id:'abd101', ar:'بطن — مستوى الكليتين', en:'Abdomen — kidneys level', src:'assets/abdomen/slice-101.jpg' },
+  { id:'head17', ar:'رأس — مستوى البطينين', en:'Head — ventricles level', src:'assets/head/slice-017.jpg' },
+];
+const WIN_PRESETS = [
+  { ar:'رئة', en:'Lung', w:1500, c:-500 }, { ar:'منصف', en:'Mediastinum', w:400, c:40 },
+  { ar:'بطن', en:'Abdomen', w:400, c:50 }, { ar:'عظم', en:'Bone', w:1800, c:400 },
+  { ar:'دماغ', en:'Brain', w:80, c:40 },
+];
+function viewWindowing(){
+  return `<div class="page"><div class="wrap">
+    <p class="crumb">${t().crumb_home} ← ${t().win_title}</p>
+    <h1>${t().win_title}</h1>
+    <p class="intro">${t().win_sub}</p>
+    <div class="panel reveal">
+      <p class="win-src">${t().win_src} ${WIN_SOURCES.map((s,i)=>`<button class="v-btn win-src-btn${i===0?' on':''}" data-i="${i}">${s[lang]}</button>`).join(' ')}</p>
+      <div class="exam-box"><canvas id="win-canvas" width="640" height="480"></canvas></div>
+      <div class="win-controls">
+        <label>${t().win_w}: <b id="win-w-val">400</b>
+          <input type="range" id="win-w" min="1" max="2000" value="400"></label>
+        <label>${t().win_c}: <b id="win-c-val">40</b>
+          <input type="range" id="win-c" min="-1000" max="1000" value="40"></label>
+      </div>
+      <p class="win-presets">${WIN_PRESETS.map((p,i)=>`<button class="v-btn win-pre" data-i="${i}">${p[lang]} · W${p.w} L${p.c}</button>`).join(' ')}</p>
+      <p class="v-note">${t().win_note}</p>
+    </div>
+  </div></div>`;
+}
+function bindWindowing(){
+  const canvas = $('#win-canvas'), ctx = canvas.getContext('2d');
+  let img = null;
+  function render(){
+    if(!img) return;
+    const W = +$('#win-w').value, C = +$('#win-c').value;
+    $('#win-w-val').textContent = W; $('#win-c-val').textContent = C;
+    const off = document.createElement('canvas');
+    off.width = img.naturalWidth; off.height = img.naturalHeight;
+    const octx = off.getContext('2d');
+    octx.drawImage(img, 0, 0);
+    const data = octx.getImageData(0, 0, off.width, off.height), px = data.data;
+    const lo = C - W/2, hi = C + W/2, span = Math.max(hi - lo, 1);
+    for(let i = 0; i < px.length; i += 4){
+      const hu = (px[i] / 255) * 2000 - 1000;
+      let v = (hu - lo) / span * 255;
+      v = v < 0 ? 0 : v > 255 ? 255 : v;
+      px[i] = px[i+1] = px[i+2] = v;
+    }
+    octx.putImageData(data, 0, 0);
+    canvas.width = off.width; canvas.height = off.height;
+    ctx.drawImage(off, 0, 0);
+  }
+  function load(i){
+    img = new Image();
+    img.onload = render;
+    img.src = WIN_SOURCES[i].src;
+    document.querySelectorAll('.win-src-btn').forEach((b,j) => b.classList.toggle('on', i === j));
+  }
+  $('#win-w').oninput = render; $('#win-c').oninput = render;
+  document.querySelectorAll('.win-src-btn').forEach(b => b.onclick = () => load(+b.dataset.i));
+  document.querySelectorAll('.win-pre').forEach(b => b.onclick = () => {
+    const p = WIN_PRESETS[+b.dataset.i];
+    $('#win-w').value = p.w; $('#win-c').value = p.c; render();
+  });
+  load(0);
+}
+
+/* ---------- UNIFIED SEARCH ---------- */
+let SEARCH_INDEX = null;
+function buildSearchIndex(){
+  if(SEARCH_INDEX) return SEARCH_INDEX;
+  const idx = [];
+  const lessonText = l => [l.title.ar, l.title.en, l.intro.ar, l.intro.en,
+    ...l.sections.flatMap(s => [s.h.ar, s.h.en, ...(s.paras||[]).flatMap(p => [p.ar, p.en]), ...(s.bullets||[]).flatMap(b => [b.ar, b.en])])].join(' ').toLowerCase();
+  const allLessons = [];
+  for(const ch of CHAPTERS) allLessons.push(...chapterLessons(ch.key));
+  allLessons.push(...APPENDIX_LESSONS, ...ALL_BASICS());
+  for(const l of allLessons) idx.push({ kind:'lesson', title: l.title, link: '#/lesson/' + l.slug, text: lessonText(l) });
+  idx.push({ kind:'dicom', title: { ar:'دليل برامج DICOM/PACS', en:'DICOM/PACS viewers guide' }, link: '#/dicom',
+    text: 'dicom pacs viewers weasis horos radiant pacsbin برامج عارض صور' });
+  SEARCH_INDEX = idx;
+  return idx;
+}
+function ALL_BASICS(){
+  const out = [];
+  for(const c of BASICS_CHAPTERS) out.push(...basicsChapterLessons(c.key));
+  return out;
+}
+function viewSearch(){
+  return `<div class="page"><div class="wrap">
+    <p class="crumb">${t().crumb_home} ← ${t().nav_search}</p>
+    <h1>${t().search_title}</h1>
+    <p class="intro">${t().search_sub}</p>
+    <div class="search-bar">
+      <input type="search" id="search-q" placeholder="${t().search_ph}" autocomplete="off">
+      <button class="v-btn on" id="search-go">${t().search_btn}</button>
+    </div>
+    <div id="search-results"></div>
+  </div></div>`;
+}
+function bindSearch(){
+  const input = $('#search-q'), box = $('#search-results');
+  function run(){
+    const q = input.value.trim().toLowerCase();
+    if(q.length < 2){ box.innerHTML = ''; return; }
+    const hits = buildSearchIndex().filter(e => e.text.includes(q) || e.title.ar.toLowerCase().includes(q) || e.title.en.toLowerCase().includes(q));
+    const quizHits = findAllQuizzes().filter(z => (z.title.ar + z.title.en).toLowerCase().includes(q));
+    const examHits = EXAMS.filter(e => (e.title.ar + e.title.en + e.desc.ar + e.desc.en).toLowerCase().includes(q));
+    const total = hits.length + quizHits.length + examHits.length;
+    if(!total){ box.innerHTML = `<p class="intro">${t().search_none}</p>`; return; }
+    box.innerHTML = `<p class="intro">${total} ${t().search_res}</p><div class="lesson-list">` +
+      hits.map(h => `<a class="lesson-row" href="${h.link}"><span class="lesson-name">${h.title[lang]}</span><span class="badge live">${h.kind === 'dicom' ? 'DICOM' : t().mis_lesson}</span><span class="lesson-arrow">←</span></a>`).join('') +
+      quizHits.map(z => `<a class="lesson-row" href="#/quiz/${z.slug}"><span class="lesson-name">${z.title[lang]}</span><span class="badge live">${t().section_quiz}</span><span class="lesson-arrow">←</span></a>`).join('') +
+      examHits.map(e => `<a class="lesson-row" href="#/exam/${e.id}"><span class="lesson-name">${e.title[lang]}</span><span class="badge live">${t().mis_exam}</span><span class="lesson-arrow">←</span></a>`).join('') +
+      `</div>`;
+  }
+  input.oninput = run;
+  $('#search-go').onclick = run;
+  input.focus();
+}
+function findAllQuizzes(){
+  const out = [];
+  for(const c of BASICS_CHAPTERS){ const z = basicsChapterQuiz(c.key); if(z) out.push(z); }
+  return out;
+}
+
+/* ---------- FLASHCARDS ---------- */
+let cardState = null;
+function viewFlashcards(){
+  return `<div class="page"><div class="wrap">
+    <p class="crumb">${t().crumb_home} ← ${t().cards_card_t}</p>
+    <h1>${t().cards_title}</h1>
+    <p class="intro">${t().cards_sub}</p>
+    <div id="cards-root"></div>
+  </div></div>`;
+}
+function bindFlashcards(){
+  const terms = Object.keys(GLOSSARY);
+  const known = new Set(JSON.parse(localStorage.getItem('radiovia_known') || '[]'));
+  cardState = { order: terms.map((_,i) => i), idx: 0, flipped: false };
+  const root = $('#cards-root');
+  function saveKnown(){ localStorage.setItem('radiovia_known', JSON.stringify([...known])); }
+  function render(){
+    const st = cardState, term = terms[st.order[st.idx]], def = GLOSSARY[term];
+    root.innerHTML = `
+      <p class="exam-meta"><span>${st.idx+1} ${t().cards_of} ${terms.length}</span><span>✓ ${known.size}</span></p>
+      <div class="progress"><span style="width:${(st.idx+1)/terms.length*100}%"></span></div>
+      <div class="flashcard ${st.flipped ? 'flipped' : ''}" id="fc-card">
+        <div class="fc-face fc-front"><div class="fc-term">${term}</div><p class="fc-hint">${t().cards_flip}</p></div>
+        <div class="fc-face fc-back"><p>${def[lang]}</p></div>
+      </div>
+      <div class="exam-nav">
+        <button class="v-btn" id="fc-prev">${t().cards_prev}</button>
+        <button class="v-btn" id="fc-shuffle">${t().cards_shuffle}</button>
+        <button class="v-btn ${known.has(term) ? 'on' : ''}" id="fc-known">${t().cards_known}</button>
+        <button class="v-btn" id="fc-next">${t().cards_next}</button>
+      </div>
+      <p class="fc-reset"><button class="v-btn" id="fc-reset">${t().cards_reset}</button></p>`;
+    $('#fc-card').onclick = () => { st.flipped = !st.flipped; render(); };
+    $('#fc-next').onclick = () => { st.idx = (st.idx+1) % terms.length; st.flipped = false; render(); };
+    $('#fc-prev').onclick = () => { st.idx = (st.idx-1+terms.length) % terms.length; st.flipped = false; render(); };
+    $('#fc-shuffle').onclick = () => {
+      for(let i = st.order.length-1; i > 0; i--){ const j = Math.floor(Math.random()*(i+1)); [st.order[i], st.order[j]] = [st.order[j], st.order[i]]; }
+      st.idx = 0; st.flipped = false; render();
+    };
+    $('#fc-known').onclick = () => { known.has(term) ? known.delete(term) : known.add(term); saveKnown(); render(); };
+    $('#fc-reset').onclick = () => { known.clear(); saveKnown(); render(); };
+  }
+  render();
+}
+
+/* ---------- MISTAKES PAGE ---------- */
+function viewMistakes(){
+  const all = loadMistakes().slice().reverse();
+  const rows = all.map(m => {
+    const kindLabel = m.kind === 'exam' ? t().mis_exam : m.kind === 'quiz' ? t().mis_quiz : t().mis_lesson;
+    const link = m.kind === 'exam' ? '#/exam/' + m.slug : m.kind === 'quiz' ? '#/quiz/' + m.slug : '#/lesson/' + m.slug;
+    return `<div class="review-row bad">
+      <span class="review-num">✗</span>
+      <span class="mis-main"><b>${m.q[lang]}</b><br>
+      <span class="mis-correct">✓ ${m.correct[lang]}</span> · <span class="mis-picked">${t().exam_you}: ${m.picked[lang]}</span><br>
+      <a class="mis-src" href="${link}">${kindLabel}: ${m.title[lang]}</a></span>
+    </div>`;
+  }).join('');
+  return `<div class="page"><div class="wrap">
+    <p class="crumb">${t().crumb_home} ← ${t().mis_card_t}</p>
+    <h1>${t().mis_title}</h1>
+    <p class="intro">${t().mis_sub}</p>
+    ${all.length ? `<div class="review-list">${rows}</div><p><button class="v-btn" id="mis-clear">${t().mis_clear}</button></p>` : `<div class="panel"><p>${t().mis_empty}</p></div>`}
+  </div></div>`;
+}
+
 /* ---------- DICOM ---------- */
 function viewDicom(){
   const cards = VIEWERS.map((v,i)=>`<div class="card reveal" style="transition-delay:${i*60}ms">
@@ -570,6 +879,7 @@ function render(){
   const route = location.hash || '#/';
   const app = $('#app');
   stopViewerTimer();
+  if(examState?.timer){ clearInterval(examState.timer); examState.timer = null; }
   if(route === '#/physics') app.innerHTML = viewPhysicsIndex();
   else if(route.startsWith('#/physics/')) app.innerHTML = viewChapter(route.split('/')[2]);
   else if(route === '#/basics') app.innerHTML = viewBasicsIndex();
@@ -578,14 +888,14 @@ function render(){
     const slug = route.split('/')[2];
     app.innerHTML = viewQuizPage(slug);
     const quiz = findQuiz(slug);
-    if(quiz) bindQuiz(quiz.questions);
+    if(quiz) bindQuiz(quiz.questions, { kind:'quiz', slug, title: quiz.title });
   }
   else if(route.startsWith('#/lesson/')){
     const slug = route.split('/')[2];
     app.innerHTML = viewLesson(slug);
     const lesson = findAnyLesson(slug);
-    if(lesson?.featured) bindQuiz(QUIZ);
-    else if(lesson?.quiz) bindQuiz(lesson.quiz);
+    if(lesson?.featured) bindQuiz(QUIZ, { kind:'lesson', slug, title: lesson.title });
+    else if(lesson?.quiz) bindQuiz(lesson.quiz, { kind:'lesson', slug, title: lesson.title });
   }
   else if(route === '#/anatomy'){ app.innerHTML = viewAnatomy('chest'); bindAnatomy(); }
   else if(route === '#/anatomy-abdomen'){ app.innerHTML = viewAnatomy('abdomen'); bindAnatomy(); }
@@ -596,6 +906,15 @@ function render(){
     app.innerHTML = viewExam(id);
     bindExam(id);
   }
+  else if(route === '#/labs'){ app.innerHTML = viewLabs(); bindLabs(); }
+  else if(route === '#/windowing'){ app.innerHTML = viewWindowing(); bindWindowing(); }
+  else if(route === '#/search'){ app.innerHTML = viewSearch(); bindSearch(); }
+  else if(route === '#/flashcards'){ app.innerHTML = viewFlashcards(); bindFlashcards(); }
+  else if(route === '#/mistakes'){
+    app.innerHTML = viewMistakes();
+    const clearBtn = $('#mis-clear');
+    if(clearBtn) clearBtn.onclick = () => { localStorage.removeItem(MIS_KEY); render(); };
+  }
   else if(route === '#/dicom'){ app.innerHTML = viewDicom(); }
   else app.innerHTML = viewHome();
   bindGloss(); bindReveal();
@@ -604,3 +923,8 @@ function render(){
 function stopViewerTimer(){ if(viewerState.timer){ clearInterval(viewerState.timer); viewerState.timer = null; } }
 window.addEventListener('hashchange', render);
 render();
+
+/* ---------- PWA ---------- */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
