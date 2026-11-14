@@ -248,7 +248,7 @@ footer.site .cols{display:flex; gap:26px; flex-wrap:wrap; justify-content:space-
 .flashcard.flipped{background:linear-gradient(145deg,#0e2a33,#0d1f26)}
 .fc-term{font-size:1.7rem; font-weight:900; color:var(--accent)}
 .fc-hint{color:var(--muted); margin-top:12px}
-.fc-back p{font-size:1.08rem; line-height:1.9}
+.fc-back p{font-size:1.08rem; line-height:1.9; color:#e8f1f4}
 .fc-reset{text-align:center; margin-top:6px}
 .mis-main{line-height:1.8}
 .mis-correct{color:#2ea36b; font-weight:700}

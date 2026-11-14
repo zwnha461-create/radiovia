@@ -734,8 +734,8 @@ let SEARCH_INDEX = null;
 function buildSearchIndex(){
   if(SEARCH_INDEX) return SEARCH_INDEX;
   const idx = [];
-  const lessonText = l => [l.title.ar, l.title.en, l.intro.ar, l.intro.en,
-    ...l.sections.flatMap(s => [s.h.ar, s.h.en, ...(s.paras||[]).flatMap(p => [p.ar, p.en]), ...(s.bullets||[]).flatMap(b => [b.ar, b.en])])].join(' ').toLowerCase();
+  const lessonText = l => [l.title?.ar || '', l.title?.en || '', l.intro?.ar || '', l.intro?.en || '',
+    ...((l.sections || []).flatMap(s => [s.h?.ar || '', s.h?.en || '', ...((s.paras||[]).flatMap(p => [p.ar, p.en])), ...((s.bullets||[]).flatMap(b => [b.ar, b.en]))]))].join(' ').toLowerCase();
   const allLessons = [];
   for(const ch of CHAPTERS) allLessons.push(...chapterLessons(ch.key));
   allLessons.push(...APPENDIX_LESSONS, ...ALL_BASICS());
@@ -810,8 +810,9 @@ function bindFlashcards(){
       <p class="exam-meta"><span>${st.idx+1} ${t().cards_of} ${terms.length}</span><span>✓ ${known.size}</span></p>
       <div class="progress"><span style="width:${(st.idx+1)/terms.length*100}%"></span></div>
       <div class="flashcard ${st.flipped ? 'flipped' : ''}" id="fc-card">
-        <div class="fc-face fc-front"><div class="fc-term">${term}</div><p class="fc-hint">${t().cards_flip}</p></div>
-        <div class="fc-face fc-back"><p>${def[lang]}</p></div>
+        ${st.flipped
+          ? `<div class="fc-face fc-back"><p>${def[lang]}</p></div>`
+          : `<div class="fc-face fc-front"><div class="fc-term">${term}</div><p class="fc-hint">${t().cards_flip}</p></div>`}
       </div>
       <div class="exam-nav">
         <button class="v-btn" id="fc-prev">${t().cards_prev}</button>
