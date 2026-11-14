@@ -167,3 +167,25 @@ footer.site .cols{display:flex; gap:26px; flex-wrap:wrap; justify-content:space-
   nav.main a{padding:6px 9px; font-size:.88rem}
   .slice-label{font-size:.7rem}
 }
+
+/* lesson lists & navigation */
+.lesson-list{display:flex; flex-direction:column; gap:10px; margin:20px 0 50px}
+.lesson-row{
+  display:flex; align-items:center; gap:14px; background:var(--card);
+  border:1px solid var(--line); border-radius:14px; padding:14px 18px;
+  color:var(--ink); box-shadow:var(--shadow); transition:transform .2s ease;
+}
+.lesson-row:hover{text-decoration:none; transform:translateY(-2px)}
+.lesson-num{
+  flex:none; width:34px; height:34px; border-radius:50%; background:var(--accent-soft);
+  color:var(--accent-dark); font-weight:800; display:flex; align-items:center; justify-content:center;
+}
+.lesson-name{font-weight:700; flex:1}
+.lesson-arrow{color:var(--muted)}
+.lesson-nav{display:flex; justify-content:space-between; gap:12px; margin:26px 0 10px}
+.v-nav-btn{
+  background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 18px;
+  color:var(--accent-dark); font-weight:700; box-shadow:var(--shadow); max-width:48%;
+}
+.v-nav-btn:hover{text-decoration:none}
+.v-nav-btn small{color:var(--muted); font-weight:600}

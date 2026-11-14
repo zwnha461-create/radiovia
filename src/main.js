@@ -1,4 +1,5 @@
 import { T, SLICES, sliceSrc, LEVELS, levelOf, LABELS, GLOSSARY, QUIZ, VIEWERS } from './content.js';
+import { CHAPTERS, chapterLessons, APPENDIX_LESSONS, findLesson, chapterOf } from './lessons/index.js';
 
 let lang = localStorage.getItem('radiovia-lang') || 'ar';
 const t = () => T[lang];
@@ -11,12 +12,14 @@ function renderChrome(){
   document.documentElement.dir = t().dir;
   const route = location.hash || '#/';
   const nav = [
-    ['#/', t().nav_home], ['#/physics', t().nav_physics],
-    ['#/anatomy', t().nav_anatomy], ['#/dicom', t().nav_dicom],
+    ['#/', t().nav_home, route==='#/'],
+    ['#/physics', t().nav_physics, route.startsWith('#/physics') || route.startsWith('#/lesson')],
+    ['#/anatomy', t().nav_anatomy, route==='#/anatomy'],
+    ['#/dicom', t().nav_dicom, route==='#/dicom'],
   ];
   $('#site-header').innerHTML = `<div class="site"><div class="wrap"><div class="bar">
     <a class="logo" href="#/">${LOGO}<span>Radiovia<small>${lang==='ar'?'راديوفيا — تعليم الأشعة التشخيصية':'Diagnostic radiology education'}</small></span></a>
-    <nav class="main">${nav.map(([h,l])=>`<a href="${h}" class="${route===h?'active':''}">${l}</a>`).join('')}</nav>
+    <nav class="main">${nav.map(([h,l,a])=>`<a href="${h}" class="${a?'active':''}">${l}</a>`).join('')}</nav>
     <button class="lang-toggle" id="lang-btn">${t().langName}</button>
   </div></div></div>`;
   $('#lang-btn').onclick = () => { lang = lang==='ar' ? 'en' : 'ar'; localStorage.setItem('radiovia-lang', lang); render(); };
@@ -28,6 +31,7 @@ function renderChrome(){
 
 /* ---------- glossary popover ---------- */
 function glossify(html){
+  if(!html) return '';
   const map = [
     ['Characteristic radiation','characteristic radiation'], ['characteristic radiation','characteristic radiation'],
     ['Bremsstrahlung','bremsstrahlung'], ['Thermionic emission','thermionic emission'],
@@ -56,8 +60,43 @@ function bindGloss(){
 
 /* ---------- reveal on scroll ---------- */
 function bindReveal(){
-  const io = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} }), {threshold:.12});
+  const io = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} }), {threshold:.08});
   document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+}
+
+/* ---------- quiz (generic) ---------- */
+function quizHTML(quiz){
+  return quiz.map((q,qi)=>`<div class="quiz-q" data-q="${qi}">
+      <p class="q">${qi+1}. ${glossify(q.q[lang])}</p>
+      ${q.opts.map((o,oi)=>`<button class="quiz-opt" data-o="${oi}">${o[lang]}</button>`).join('')}
+      <div class="quiz-fb"></div>
+    </div>`).join('');
+}
+function bindQuiz(quiz){
+  const answered = new Set(); let score = 0;
+  document.querySelectorAll('.quiz-q').forEach(qEl=>{
+    const qi = +qEl.dataset.q, q = quiz[qi]; if(!q) return;
+    const fb = qEl.querySelector('.quiz-fb');
+    qEl.querySelectorAll('.quiz-opt').forEach(btn=>{
+      btn.onclick = () => {
+        if(answered.has(qi)) return;
+        answered.add(qi);
+        const oi = +btn.dataset.o;
+        qEl.querySelectorAll('.quiz-opt').forEach(b=>{
+          const bo = +b.dataset.o;
+          if(bo===q.a) b.classList.add('right'); else if(bo===oi) b.classList.add('wrong');
+          b.disabled = true;
+        });
+        if(oi===q.a) score++;
+        fb.textContent = (oi===q.a ? '✓ ' : '✗ ') + q.why[lang];
+        fb.classList.add('show');
+        if(answered.size===quiz.length){
+          const el = $('#quiz-score');
+          if(el) el.textContent = `${t().quiz_score} ${score} ${t().quiz_of} ${quiz.length}`;
+        }
+      };
+    });
+  });
 }
 
 /* ---------- HOME ---------- */
@@ -94,7 +133,76 @@ function viewHome(){
   </div></section>`;
 }
 
-/* ---------- PHYSICS ---------- */
+/* ---------- PHYSICS INDEX & CHAPTERS ---------- */
+function viewPhysicsIndex(){
+  const cards = CHAPTERS.map((c,i)=>{
+    const n = chapterLessons(c.key).length;
+    return `<div class="card reveal" style="transition-delay:${i*50}ms">
+      <div class="ico">${c.icon}</div><h3>${c[lang]}</h3>
+      <p>${n} ${t().lessons_word}</p>
+      ${n?`<span class="badge live">${t().live}</span>`:`<span class="badge soon">${t().soon}</span>`}
+      ${n?`<a class="go" href="#/physics/${c.key}">${t().open}</a>`:''}
+    </div>`;
+  }).join('');
+  const app = APPENDIX_LESSONS.length ? `<div class="card reveal">
+      <div class="ico">📎</div><h3>${t().appendix_t}</h3><p>${t().appendix_p}</p>
+      <span class="badge live">${t().live}</span><a class="go" href="#/lesson/${APPENDIX_LESSONS[0].slug}">${t().open}</a></div>` : '';
+  return `<div class="page"><div class="wrap">
+    <p class="crumb">${t().crumb_home} ← ${t().nav_physics}</p>
+    <h1>${t().phys_title}</h1>
+    <p class="intro">${t().phys_sub}</p>
+    <div class="grid">${cards}${app}</div>
+  </div></div>`;
+}
+function viewChapter(key){
+  const ch = chapterOf(key); if(!ch) return viewPhysicsIndex();
+  const lessons = chapterLessons(key);
+  const items = lessons.map((l,i)=>`<a class="lesson-row reveal" href="#/lesson/${l.slug}">
+      <span class="lesson-num">${i+1}</span>
+      <span class="lesson-name">${l.title[lang]}</span>
+      ${l.featured?`<span class="badge live">${t().featured_badge}</span>`:''}
+      <span class="lesson-arrow">←</span></a>`).join('');
+  return `<div class="page"><div class="wrap">
+    <p class="crumb"><a href="#/physics">${t().nav_physics}</a> ← ${ch[lang]}</p>
+    <h1>${ch.icon} ${ch[lang]}</h1>
+    <p class="intro">${lessons.length} ${t().lessons_word}</p>
+    <div class="lesson-list">${items}</div>
+  </div></div>`;
+}
+
+/* ---------- GENERIC LESSON ---------- */
+function sectionHTML(s){
+  let h = `<div class="panel reveal"><h2>${glossify(s.h[lang])}</h2>`;
+  if(s.nums) h += `<div class="numcards">${s.nums.map(n=>`<div class="numcard"><b>${n.v}</b>${n[lang]}</div>`).join('')}</div>`;
+  if(s.paras) h += s.paras.map(p=>`<p>${glossify(p[lang])}</p>`).join('');
+  if(s.bullets) h += `<ul>${s.bullets.map(b=>`<li>${glossify(b[lang])}</li>`).join('')}</ul>`;
+  if(s.table) h += `<table class="cmp"><tr>${s.table.head.map(x=>`<th>${glossify(x[lang])}</th>`).join('')}</tr>${
+    s.table.rows.map(r=>`<tr>${r.map((c,ci)=> ci===0?`<th>${glossify(c[lang])}</th>`:`<td>${glossify(c[lang])}</td>`).join('')}</tr>`).join('')}</table>`;
+  return h + `</div>`;
+}
+function viewLesson(slug){
+  const lesson = findLesson(slug);
+  if(!lesson) return viewPhysicsIndex();
+  if(lesson.featured) return viewProduction();
+  const ch = chapterOf(lesson.chapter);
+  const siblings = lesson.chapter === 'appendix' ? APPENDIX_LESSONS : chapterLessons(lesson.chapter);
+  const idx = siblings.findIndex(l=>l.slug===slug);
+  const prev = idx>0 ? siblings[idx-1] : null;
+  const next = idx>=0 && idx<siblings.length-1 ? siblings[idx+1] : null;
+  return `<div class="page"><div class="wrap">
+    <p class="crumb"><a href="#/physics">${t().nav_physics}</a>${ch?` ← <a href="#/physics/${ch.key}">${ch[lang]}</a>`:''} ← ${lesson.title[lang]}</p>
+    <h1>${lesson.title[lang]}</h1>
+    <p class="intro">${glossify(lesson.intro[lang])}</p>
+    ${lesson.sections.map(sectionHTML).join('')}
+    ${lesson.quiz?.length?`<div class="panel reveal"><h2>${t().end_quiz}</h2><div id="quiz">${quizHTML(lesson.quiz)}</div><p class="quiz-score" id="quiz-score"></p></div>`:''}
+    <div class="lesson-nav">
+      ${prev?`<a class="v-nav-btn" href="#/lesson/${prev.slug}">${t().prev_lesson}<br><small>${prev.title[lang]}</small></a>`:'<span></span>'}
+      ${next?`<a class="v-nav-btn" href="#/lesson/${next.slug}">${t().next_lesson}<br><small>${next.title[lang]}</small></a>`:'<span></span>'}
+    </div>
+  </div></div>`;
+}
+
+/* ---------- FEATURED LESSON: Production of X-rays ---------- */
 function tubeSVG(){
   const electrons = Array.from({length:5},(_,i)=>`
     <circle r="4" fill="#ffb703"><animateMotion dur="1.6s" begin="${i*0.32}s" repeatCount="indefinite"
@@ -131,16 +239,11 @@ function spectrumSVG(){
     <text x="345" y="40" fill="#e67e22" font-size="13" font-weight="700">${lang==='ar'?'قمم مميزة':'Characteristic peaks'}</text>
   </svg>`;
 }
-function viewPhysics(){
+function viewProduction(){
   const steps = t().steps.map(s=>`<li>${glossify(s)}</li>`).join('');
   const rows = t().cmp_rows.map(r=>`<tr><th>${r[0]}</th><td>${glossify(r[1])}</td><td>${glossify(r[2])}</td></tr>`).join('');
-  const quiz = QUIZ.map((q,qi)=>`<div class="quiz-q" data-q="${qi}">
-      <p class="q">${qi+1}. ${glossify(q.q[lang])}</p>
-      ${q.opts.map((o,oi)=>`<button class="quiz-opt" data-o="${oi}">${o[lang]}</button>`).join('')}
-      <div class="quiz-fb"></div>
-    </div>`).join('');
   return `<div class="page"><div class="wrap">
-    <p class="crumb">${t().phys_crumb}</p>
+    <p class="crumb"><a href="#/physics">${t().nav_physics}</a> ← <a href="#/physics/xray">${lang==='ar'?'تصوير الأشعة السينية':'X-ray Imaging'}</a> ← ${t().phys_title.includes('Production')?'':''}${lang==='ar'?'إنتاج الأشعة السينية':'Production of X-rays'}</p>
     <h1>${t().phys_title}</h1>
     <p class="intro">${glossify(t().phys_intro)}</p>
 
@@ -159,32 +262,9 @@ function viewPhysics(){
 
     <div class="panel reveal"><h2>${t().spectrum_title}</h2>${spectrumSVG()}<p>${glossify(t().spectrum_p)}</p></div>
 
-    <div class="panel reveal"><h2>${t().quiz_title}</h2><div id="quiz">${quiz}</div>
+    <div class="panel reveal"><h2>${t().quiz_title}</h2><div id="quiz">${quizHTML(QUIZ)}</div>
       <p class="quiz-score" id="quiz-score"></p></div>
   </div></div>`;
-}
-function bindQuiz(){
-  const answered = new Set(); let score = 0;
-  document.querySelectorAll('.quiz-q').forEach(qEl=>{
-    const qi = +qEl.dataset.q, q = QUIZ[qi], fb = qEl.querySelector('.quiz-fb');
-    qEl.querySelectorAll('.quiz-opt').forEach(btn=>{
-      btn.onclick = () => {
-        if(answered.has(qi)) return;
-        answered.add(qi);
-        const oi = +btn.dataset.o;
-        qEl.querySelectorAll('.quiz-opt').forEach(b=>{
-          const bo = +b.dataset.o;
-          if(bo===q.a) b.classList.add('right'); else if(bo===oi) b.classList.add('wrong');
-          b.disabled = true;
-        });
-        if(oi===q.a) score++;
-        fb.textContent = (oi===q.a ? '✓ ' : '✗ ') + q.why[lang];
-        fb.classList.add('show');
-        if(answered.size===QUIZ.length)
-          $('#quiz-score').textContent = `${t().quiz_score} ${score} ${t().quiz_of} ${QUIZ.length}`;
-      };
-    });
-  });
 }
 
 /* ---------- ANATOMY ---------- */
@@ -276,12 +356,22 @@ function render(){
   renderChrome();
   const route = location.hash || '#/';
   const app = $('#app');
-  if(route === '#/physics'){ app.innerHTML = viewPhysics(); bindQuiz(); }
+  stopViewerTimer();
+  if(route === '#/physics') app.innerHTML = viewPhysicsIndex();
+  else if(route.startsWith('#/physics/')) app.innerHTML = viewChapter(route.split('/')[2]);
+  else if(route.startsWith('#/lesson/')){
+    const slug = route.split('/')[2];
+    app.innerHTML = viewLesson(slug);
+    const lesson = findLesson(slug);
+    if(lesson?.featured) bindQuiz(QUIZ);
+    else if(lesson?.quiz) bindQuiz(lesson.quiz);
+  }
   else if(route === '#/anatomy'){ app.innerHTML = viewAnatomy(); bindAnatomy(); }
   else if(route === '#/dicom'){ app.innerHTML = viewDicom(); }
   else app.innerHTML = viewHome();
   bindGloss(); bindReveal();
   window.scrollTo({top:0});
 }
+function stopViewerTimer(){ if(viewerState.timer){ clearInterval(viewerState.timer); viewerState.timer = null; } }
 window.addEventListener('hashchange', render);
 render();

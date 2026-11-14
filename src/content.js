@@ -170,6 +170,13 @@ export const T = {
     foot_about:'Radiovia — مشروع تعليمي مستقل. المحتوى مكتوب بصياغة أصلية لأغراض التعليم، والحقائق العلمية مرجعها مناهج فيزياء الأشعة المعتمدة.',
     foot_credit:'صور الصدر: CC0 — Mikael Häggström, Wikimedia Commons. لا تُستخدم صور أو نصوص Radiology Cafe.',
     foot_note:'موقع تعليمي للطلبة والفنيين — ليس بديلًا عن المراجع الرسمية ولا للتشخيص.',
+    phys_title:'فيزياء الأشعة — FRCR Physics Notes',
+    phys_sub:'سبعة فصول كاملة بنفس ترتيب المنهج: كل درس بصياغة عربية أصلية، مع كويز قصير في نهايته.',
+    lessons_word:'درس', chapters_word:'فصول',
+    appendix_t:'الملحق — Appendix', appendix_p:'جداول ومراجع سريعة: وحدات القياس وثوابت ومقادير مرجعية.',
+    prev_lesson:'→ الدرس السابق', next_lesson:'الدرس التالي ←',
+    back_chapter:'عودة إلى الفصل', end_quiz:'اختبر نفسك — نهاية الدرس',
+    featured_badge:'درس تفاعلي',
   },
   en:{
     dir:'ltr', langName:'العربية',
@@ -229,5 +236,12 @@ export const T = {
     foot_about:'Radiovia — an independent educational project. Content is written in original wording for teaching; the science follows standard radiology physics curricula.',
     foot_credit:'Chest images: CC0 — Mikael Häggström, Wikimedia Commons. No Radiology Cafe text or images are used.',
     foot_note:'An educational site for students and technologists — not a substitute for official references or diagnosis.',
+    phys_title:'Radiology Physics — FRCR Physics Notes',
+    phys_sub:'Seven complete chapters in curriculum order: every lesson in original Arabic wording, with a short quiz at its end.',
+    lessons_word:'lessons', chapters_word:'chapters',
+    appendix_t:'Appendix', appendix_p:'Quick reference tables: units, constants and reference values.',
+    prev_lesson:'← Previous lesson', next_lesson:'Next lesson →',
+    back_chapter:'Back to chapter', end_quiz:'Check yourself — end of lesson',
+    featured_badge:'Interactive lesson',
   }
 };
